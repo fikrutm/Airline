@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/integration"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+    xmlns:amqp="http://www.springframework.org/schema/integration/amqp"
+	xmlns:jms="http://www.springframework.org/schema/integration/jms"
+	xmlns:mail="http://www.springframework.org/schema/integration/mail"
+	xmlns:stream="http://www.springframework.org/schema/integration/stream"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+			http://www.springframework.org/schema/beans/spring-beans.xsd
+			http://www.springframework.org/schema/context
+			http://www.springframework.org/schema/context/spring-context.xsd
+			http://www.springframework.org/schema/integration
+			http://www.springframework.org/schema/integration/spring-integration.xsd
+ 			http://www.springframework.org/schema/integration/mail
+    		http://www.springframework.org/schema/integration/mail/spring-integration-mail.xsd
+ 			http://www.springframework.org/schema/integration/amqp 
+ 				http://www.springframework.org/schema/integration/amqp/spring-integration-amqp.xsd
+    		http://www.springframework.org/schema/integration/jms
+			http://www.springframework.org/schema/integration/jms/spring-integration-jms.xsd
+			http://www.springframework.org/schema/integration/stream
+			http://www.springframework.org/schema/integration/stream/spring-integration-stream.xsd">
+
+ 
+     <gateway id="accountChange" service-interface="rest.bank.integration.AccountChangeGateway"
+			 default-request-channel="processAccountChange"/>
+ 
+	<channel id="processAccountChange"/>
+
+    <!-- "ref" refers to custom AccountChangeRouter:processAccountChange "method" is the message channel -->
+ 	<router input-channel="processAccountChange" ref="accountChangeRouter" method="processAccountChange"/>
+
+	<recipient-list-router id="accountRouter" input-channel="processAccountChange" >
+	  <recipient channel="mailChannel"/>
+	  <!-- <recipient channel="smsChannel"/> -->
+	</recipient-list-router>
+	
+	<channel id="mailChannel" />
+	<!-- <channel id="smsChannel" /> -->
+	
+	<transformer id="transformAccountEmail" ref="accountToEmailTextTransformer"  input-channel="mailChannel" output-channel="transformedAccountToEmail" />
+ 	<beans:bean id="accountToEmailTextTransformer" class="rest.bank.integration.AccountToEmailTextTransformerImpl" />
+	
+	<channel id="restEmailSender" />
+	<!-- <channel id="restSmsSender" /> -->
+	
+    <!-- bridge between Direct channel & JMS outbound channel-->
+    <bridge input-channel="transformedAccountToEmail" output-channel="restEmailSender" />
+    <!-- <bridge input-channel="smsChannel" output-channel="restSmsSender" /> -->
+    
+    <jms:outbound-channel-adapter id="jmsoutRestEmail" channel="restEmailSender" destination="restEmailQueue"/>
+    <!-- <jms:outbound-channel-adapter id="jmsoutRestSms" channel="restSmsSender" destination="restSmsQueue"/> -->
+    
+</beans:beans>
